@@ -47,10 +47,5 @@ public class PersistentBootstrap : MonoBehaviour
             return;
         }
         Debug.Log("[Bootstrap] Runner started in MainScene.");
-
-        if (runner.IsSceneAuthority)
-        {
-            await runner.LoadScene(mainSceneName, LoadSceneMode.Single);
-        }
     }
 }

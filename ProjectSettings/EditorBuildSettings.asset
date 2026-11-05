@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Project/Scenes/_Bootstrap.unity
+    guid: 4e55eb21d2c8eae4cb038416e12b78c9
+  - enabled: 1
     path: Assets/_Project/Scenes/BoatPuzzleScene.unity
     guid: 2a380f6a4ff68ac48b3c1a3167b35685
   - enabled: 1
