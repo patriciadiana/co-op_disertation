@@ -1,6 +1,7 @@
 using Fusion;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(NetworkTransform))]
 public class BoatController : NetworkBehaviour
@@ -17,11 +18,16 @@ public class BoatController : NetworkBehaviour
     public WaveSample Waves;
 
     public float RudderRotation;
-    public bool GasOn => localThrottle != 0;
+    public bool GasOn => NetworkedThrottle != 0;
+    private bool _exiting;
 
     [Networked] private float NetworkedSteering { get; set; }
+    [Networked] private float NetworkedThrottle { get; set; }
 
-    private float localThrottle;
+    private enum ControlRole { Steering, Throttle, Both }
+
+    private float _lastSentSteer;
+    private float _lastSentThrottle;
     private float _time;
 
     private Rigidbody _body;
@@ -43,56 +49,99 @@ public class BoatController : NetworkBehaviour
     {
         if (HasStateAuthority)
         {
-            var kb = Keyboard.current;
-            localThrottle = 0;
-            float steer = 0;
-
-            if (kb != null)
-            {
-                // Throttle Controls (W/S)
-                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) localThrottle = 1f;
-                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) localThrottle = -1f;
-
-                // Steering Controls (A/D)
-                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) steer = 1f;
-                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) steer = -1f;
-            }
-
-            NetworkedSteering = steer;
-
             UpdateControls(Runner.DeltaTime);
         }
-
-        /* 
-        else
-        {
-            var kb = Keyboard.current;
-            float steer = 0;
-            if (kb != null)
-            {
-                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) steer = 1f;
-                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) steer = -1f;
-            }
-
-            Rpc_SendSteering(steer);
-        }
-        */
     }
 
-    /* 
-    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-    private void Rpc_SendSteering(float steer)
+    private ControlRole GetLocalRole()
     {
-        NetworkedSteering = steer;
+        int count = 0;
+        int lowestId = int.MaxValue;
+        foreach (var player in Runner.ActivePlayers)
+        {
+            count++;
+            lowestId = Mathf.Min(lowestId, player.PlayerId);
+        }
+
+        if (count <= 1) return ControlRole.Both;
+        return Runner.LocalPlayer.PlayerId == lowestId ? ControlRole.Steering : ControlRole.Throttle;
     }
-    */
+
+    private void Update()
+    {
+        if (Object == null || !Object.IsValid) return;
+
+        var kb = Keyboard.current;
+        if (kb == null) return;
+
+        var role = GetLocalRole();
+
+        if (role != ControlRole.Throttle)
+        {
+            float steer = 0;
+            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) steer = 1f;
+            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) steer = -1f;
+
+            if (steer != _lastSentSteer)
+            {
+                _lastSentSteer = steer;
+                Rpc_SetSteering(steer);
+            }
+        }
+
+        if (role != ControlRole.Steering)
+        {
+            float throttle = 0;
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) throttle = 1f;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) throttle = -1f;
+
+            if (throttle != _lastSentThrottle)
+            {
+                _lastSentThrottle = throttle;
+                Rpc_SetThrottle(throttle);
+            }
+        }
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    private void Rpc_SetSteering(float value)
+    {
+        NetworkedSteering = value;
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    private void Rpc_SetThrottle(float value)
+    {
+        NetworkedThrottle = value;
+    }
+
+    private void OnGUI()
+    {
+        if (Object == null || !Object.IsValid) return;
+
+        string text = GetLocalRole() switch
+        {
+            ControlRole.Steering => "You control: STEERING  [A] / [D]",
+            ControlRole.Throttle => "You control: ENGINE  [W] / [S]",
+            _ => "You control: STEERING [A]/[D] and ENGINE [W]/[S]",
+        };
+
+        var style = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = 24,
+        };
+        style.normal.textColor = Color.yellow;
+
+        GUI.Label(new Rect(Screen.width / 2 - 250, 20, 500, 40), text, style);
+    }
 
     private void UpdateControls(float deltaTime)
     {
         if (_body == null) return;
 
         float rudderInput = NetworkedSteering;
-        float engineInput = localThrottle;
+        float engineInput = NetworkedThrottle;
 
         if (Mathf.Abs(rudderInput) > 0.1f)
         {
@@ -141,7 +190,7 @@ public class BoatController : NetworkBehaviour
             _body.angularVelocity = Vector3.zero;
 
             NetworkedSteering = 0;
-            localThrottle = 0;
+            NetworkedThrottle = 0;
             RudderRotation = 0;
 
             Debug.Log("Boat Hit Obstacle! Resetting...");
@@ -153,12 +202,12 @@ public class BoatController : NetworkBehaviour
         Rpc_RequestExitPuzzle();
     }
 
-    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    [Rpc(RpcSources.All, RpcTargets.All)]
     private void Rpc_RequestExitPuzzle()
     {
-        if (Runner.IsSharedModeMasterClient && TransitionController.Instance != null)
-        {
-            TransitionController.Instance.ExitPuzzle();
-        }
+        if (_exiting || !Runner.IsSceneAuthority) return;
+
+        _exiting = true;
+        Runner.LoadScene("MainScene", LoadSceneMode.Single);
     }
 }

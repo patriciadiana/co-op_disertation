@@ -1,24 +1,26 @@
 using Fusion;
+using Photon.Realtime;
 using UnityEngine;
 
 public class PlayerSpawner : MonoBehaviour
 {
     [SerializeField] private NetworkPrefabRef PlayerPrefab;
+    [SerializeField] private Transform spawnPosition;
 
-    private void Start()
+    private void Update()
     {
         var runner = PersistentBootstrap.ActiveRunner;
-        if (runner == null || !runner.IsRunning) return;
 
-        if (runner.IsSharedModeMasterClient)
-        {
-            foreach (var player in runner.ActivePlayers)
-            {
-                if (runner.GetPlayerObject(player) != null) continue;
+        if (runner == null || !runner.IsRunning || runner.LocalPlayer == PlayerRef.None) return;
 
-                Debug.Log($"<color=cyan>[Spawner]</color> Spawning player {player}");
-                runner.Spawn(PlayerPrefab, new Vector3(0, 1, 0), Quaternion.identity, player);
-            }
-        }
+        enabled = false;
+
+        var local = runner.LocalPlayer;
+        if (runner.TryGetPlayerObject(local, out var existing) && existing != null) return;
+
+        Debug.Log($"<color=cyan>[Spawner]</color> Spawning player {local}");
+
+        var obj = runner.Spawn(PlayerPrefab, spawnPosition.position, Quaternion.identity, local);
+        runner.SetPlayerObject(local, obj);
     }
 }

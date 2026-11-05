@@ -20,10 +20,10 @@ MonoBehaviour:
     rid: 1557384814544552020
   m_ActivePlatformGuid: 
   m_AdditionalPlatformBuildSettings: []
-  m_OverrideGlobalSceneList: 1
+  m_OverrideGlobalSceneList: 0
   m_Scenes:
   - m_enabled: 1
-    m_path: Assets/_Project/Scenes/Bootstrap.unity
+    m_path: Assets/_Project/Scenes/_Bootstrap.unity
     m_guid: 4e55eb21d2c8eae4cb038416e12b78c9
   - m_enabled: 1
     m_path: Assets/_Project/Scenes/MainScene.unity

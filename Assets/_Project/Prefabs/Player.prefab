@@ -25,7 +25,7 @@ Transform:
   m_GameObject: {fileID: 2009096883874679007}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -364,12 +364,12 @@ MonoBehaviour:
   cameraTransform: {fileID: 2406437203442750220}
   sensitivity: 0.1
   maxPitch: 85
-  minPitch: -30
+  minPitch: 0
   cameraDistance: 6
   cameraSmoothTime: 0.05
   collisionMask:
     serializedVersion: 2
-    m_Bits: 64
+    m_Bits: 1
 --- !u!114 &785973542900515112
 MonoBehaviour:
   m_ObjectHideFlags: 0
